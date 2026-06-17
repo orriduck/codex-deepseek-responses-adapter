@@ -47,13 +47,22 @@ export function messagesFromResponsesInput(body, responseStore) {
     messages.push({ role: "system", content: String(body.instructions) });
   }
 
+  let pendingAssistantToolMessage = null;
+  const flushPendingAssistantToolMessage = () => {
+    if (!pendingAssistantToolMessage) return;
+    messages.push(pendingAssistantToolMessage);
+    pendingAssistantToolMessage = null;
+  };
+
   for (const item of responseInputItems(body, responseStore)) {
     if (typeof item === "string") {
+      flushPendingAssistantToolMessage();
       messages.push({ role: "user", content: item });
       continue;
     }
 
     if (item?.type === "message") {
+      flushPendingAssistantToolMessage();
       const role = item.role === "assistant" || item.role === "system" ? item.role : "user";
       const content = textFromContent(item.content);
       if (content) {
@@ -65,26 +74,27 @@ export function messagesFromResponsesInput(body, responseStore) {
     }
 
     if (item?.type === "function_call") {
-      const message = {
+      pendingAssistantToolMessage ||= {
         role: "assistant",
         content: null,
-        tool_calls: [
-          {
-            id: item.call_id,
-            type: "function",
-            function: {
-              name: item.name,
-              arguments: item.arguments || "",
-            },
-          },
-        ],
+        tool_calls: [],
       };
-      if (item.reasoning_content) message.reasoning_content = item.reasoning_content;
-      messages.push(message);
+      if (!pendingAssistantToolMessage.reasoning_content && item.reasoning_content) {
+        pendingAssistantToolMessage.reasoning_content = item.reasoning_content;
+      }
+      pendingAssistantToolMessage.tool_calls.push({
+        id: item.call_id,
+        type: "function",
+        function: {
+          name: item.name,
+          arguments: item.arguments || "",
+        },
+      });
       continue;
     }
 
     if (item?.type === "function_call_output") {
+      flushPendingAssistantToolMessage();
       messages.push({
         role: "tool",
         tool_call_id: item.call_id,
@@ -97,11 +107,13 @@ export function messagesFromResponsesInput(body, responseStore) {
       continue;
     }
 
+    flushPendingAssistantToolMessage();
     const role = item?.role === "assistant" || item?.role === "system" || item?.role === "tool" ? item.role : "user";
     const content = textFromContent(item?.content);
     if (content) messages.push({ role, content });
   }
 
+  flushPendingAssistantToolMessage();
   if (messages.length === 0) {
     messages.push({ role: "user", content: "" });
   }

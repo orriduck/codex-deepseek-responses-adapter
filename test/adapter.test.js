@@ -38,6 +38,47 @@ test("converts previous function call plus output into assistant/tool messages",
   assert.deepEqual(messages[1], { role: "tool", tool_call_id: "call_1", content: "ok" });
 });
 
+test("groups previous parallel function calls into one DeepSeek assistant message", () => {
+  const store = new Map([
+    [
+      "resp_parallel",
+      {
+        output: [
+          {
+            type: "function_call",
+            call_id: "call_1",
+            name: "shell",
+            arguments: "{\"cmd\":\"one\"}",
+            reasoning_content: "private reasoning",
+          },
+          {
+            type: "function_call",
+            call_id: "call_2",
+            name: "shell",
+            arguments: "{\"cmd\":\"two\"}",
+            reasoning_content: "private reasoning",
+          },
+        ],
+      },
+    ],
+  ]);
+  const messages = messagesFromResponsesInput(
+    {
+      previous_response_id: "resp_parallel",
+      input: [
+        { type: "function_call_output", call_id: "call_1", output: "one" },
+        { type: "function_call_output", call_id: "call_2", output: "two" },
+      ],
+    },
+    store,
+  );
+  assert.equal(messages[0].role, "assistant");
+  assert.equal(messages[0].reasoning_content, "private reasoning");
+  assert.equal(messages[0].tool_calls.length, 2);
+  assert.equal(messages[1].role, "tool");
+  assert.equal(messages[2].role, "tool");
+});
+
 test("converts Responses function tools to chat completions tools", () => {
   const tools = toolsFromResponsesTools([
     {
