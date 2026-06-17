@@ -5,6 +5,7 @@ import {
   messagesFromResponsesInput,
   normalizeDeepSeekMessage,
   normalizeUsage,
+  publicResponseOutput,
   toolsFromResponsesTools,
 } from "../src/adapter.js";
 
@@ -117,4 +118,32 @@ test("normalizes DeepSeek usage into Responses usage shape", () => {
       total_tokens: 18,
     },
   );
+});
+
+test("preserves reasoning_content internally for DeepSeek history but strips public output", () => {
+  const normalized = normalizeDeepSeekMessage(
+    {
+      reasoning_content: "private reasoning",
+      tool_calls: [
+        {
+          id: "call_reasoning",
+          function: { name: "shell", arguments: "{\"cmd\":\"printf ok\"}" },
+        },
+      ],
+    },
+    "resp_reasoning",
+    1700000000000,
+  );
+  assert.equal(normalized.output[0].reasoning_content, "private reasoning");
+
+  const store = new Map([["resp_reasoning", { output: normalized.output }]]);
+  const messages = messagesFromResponsesInput(
+    {
+      previous_response_id: "resp_reasoning",
+      input: [{ type: "function_call_output", call_id: "call_reasoning", output: "ok" }],
+    },
+    store,
+  );
+  assert.equal(messages[0].reasoning_content, "private reasoning");
+  assert.equal(publicResponseOutput(normalized.output)[0].reasoning_content, undefined);
 });

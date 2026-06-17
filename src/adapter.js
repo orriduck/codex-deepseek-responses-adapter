@@ -56,12 +56,16 @@ export function messagesFromResponsesInput(body, responseStore) {
     if (item?.type === "message") {
       const role = item.role === "assistant" || item.role === "system" ? item.role : "user";
       const content = textFromContent(item.content);
-      if (content) messages.push({ role, content });
+      if (content) {
+        const message = { role, content };
+        if (role === "assistant" && item.reasoning_content) message.reasoning_content = item.reasoning_content;
+        messages.push(message);
+      }
       continue;
     }
 
     if (item?.type === "function_call") {
-      messages.push({
+      const message = {
         role: "assistant",
         content: null,
         tool_calls: [
@@ -74,7 +78,9 @@ export function messagesFromResponsesInput(body, responseStore) {
             },
           },
         ],
-      });
+      };
+      if (item.reasoning_content) message.reasoning_content = item.reasoning_content;
+      messages.push(message);
       continue;
     }
 
@@ -206,6 +212,7 @@ export function normalizeDeepSeekMessage(message, responseId, now = Date.now()) 
       type: "message",
       status: "completed",
       role: "assistant",
+      reasoning_content: message.reasoning_content,
       content: [{ type: "output_text", text: message.content }],
     });
   }
@@ -217,6 +224,7 @@ export function normalizeDeepSeekMessage(message, responseId, now = Date.now()) 
       call_id: toolCall.id,
       name: toolCall.function?.name || "",
       arguments: toolCall.function?.arguments || "",
+      reasoning_content: message.reasoning_content,
     });
   }
   return {
@@ -226,6 +234,10 @@ export function normalizeDeepSeekMessage(message, responseId, now = Date.now()) 
     status: "completed",
     output,
   };
+}
+
+export function publicResponseOutput(output) {
+  return output.map(({ reasoning_content, ...item }) => item);
 }
 
 export function normalizeUsage(usage) {

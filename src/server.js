@@ -4,6 +4,7 @@ import {
   deepseekRequestBody,
   normalizeDeepSeekMessage,
   normalizeUsage,
+  publicResponseOutput,
 } from "./adapter.js";
 
 const DEFAULT_MODELS = [
@@ -108,7 +109,7 @@ export function createAdapterServer(options = {}) {
       usage: normalizeUsage(payload.usage),
     };
     rememberResponse(id, response);
-    return sendJson(res, 200, response);
+    return sendJson(res, 200, { ...response, output: publicResponseOutput(response.output) });
   }
 
   async function handleStreamingResponse(body, auth, res) {
@@ -122,6 +123,7 @@ export function createAdapterServer(options = {}) {
     let outputId = itemId("msg");
     const createdAt = Math.floor(Date.now() / 1000);
     let outputText = "";
+    let reasoningContent = "";
     const toolCalls = new Map();
     let textStarted = false;
     let textOutputIndex = null;
@@ -165,6 +167,7 @@ export function createAdapterServer(options = {}) {
           const parsed = JSON.parse(data);
           if (parsed.usage) usage = normalizeUsage(parsed.usage);
           const choiceDelta = parsed.choices?.[0]?.delta || {};
+          if (choiceDelta.reasoning_content) reasoningContent += choiceDelta.reasoning_content;
           const delta = choiceDelta.content;
 
           if (delta) {
@@ -257,12 +260,13 @@ export function createAdapterServer(options = {}) {
         type: "message",
         status: "completed",
         role: "assistant",
+        reasoning_content: reasoningContent || undefined,
         content: [{ type: "output_text", text: outputText }],
       };
       sse(res, "response.output_item.done", {
         type: "response.output_item.done",
         output_index: textOutputIndex,
-        item: messageOutput,
+        item: publicResponseOutput([messageOutput])[0],
       });
       completedOutput.push(messageOutput);
     }
@@ -281,11 +285,12 @@ export function createAdapterServer(options = {}) {
         call_id: toolCall.call_id,
         name: toolCall.name,
         arguments: toolCall.arguments,
+        reasoning_content: reasoningContent || undefined,
       };
       sse(res, "response.output_item.done", {
         type: "response.output_item.done",
         output_index: toolCall.output_index,
-        item: toolOutput,
+        item: publicResponseOutput([toolOutput])[0],
       });
       completedOutput.push(toolOutput);
     }
@@ -296,6 +301,7 @@ export function createAdapterServer(options = {}) {
         type: "message",
         status: "completed",
         role: "assistant",
+        reasoning_content: reasoningContent || undefined,
         content: [{ type: "output_text", text: "" }],
       });
     }
@@ -310,7 +316,10 @@ export function createAdapterServer(options = {}) {
       usage,
     };
     rememberResponse(id, completedResponse);
-    sse(res, "response.completed", { type: "response.completed", response: completedResponse });
+    sse(res, "response.completed", {
+      type: "response.completed",
+      response: { ...completedResponse, output: publicResponseOutput(completedOutput) },
+    });
     res.end("data: [DONE]\n\n");
   }
 
@@ -345,7 +354,9 @@ export function createAdapterServer(options = {}) {
       const responseMatch = url.pathname.match(/^\/(?:v1\/)?responses\/([^/]+)$/);
       if (responseMatch && req.method === "GET") {
         const stored = responseStore.get(responseMatch[1]);
-        return stored ? sendJson(res, 200, stored) : sendJson(res, 404, { error: { message: "Response not found" } });
+        return stored
+          ? sendJson(res, 200, { ...stored, output: publicResponseOutput(stored.output) })
+          : sendJson(res, 404, { error: { message: "Response not found" } });
       }
       if (responseMatch && req.method === "DELETE") {
         const deleted = responseStore.delete(responseMatch[1]);
