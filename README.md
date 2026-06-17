@@ -35,6 +35,12 @@ npm start
 
 By default the adapter listens on `127.0.0.1:48765`.
 
+CLI options:
+
+```bash
+codex-deepseek-responses-adapter --host 127.0.0.1 --port 48765 --default-model deepseek-v4-pro
+```
+
 Optional environment variables:
 
 ```bash

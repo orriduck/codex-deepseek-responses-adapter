@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Local Responses API adapter for using DeepSeek Chat Completions with Codex.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orriduck/codex-deepseek-responses-adapter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/orriduck/codex-deepseek-responses-adapter/issues"
+  },
+  "homepage": "https://github.com/orriduck/codex-deepseek-responses-adapter#readme",
   "bin": {
     "codex-deepseek-responses-adapter": "./bin/codex-deepseek-responses-adapter.mjs"
   },
