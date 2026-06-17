@@ -3,6 +3,7 @@ import {
   buildModelEntry,
   deepseekRequestBody,
   normalizeDeepSeekMessage,
+  normalizeUsage,
 } from "./adapter.js";
 
 const DEFAULT_MODELS = [
@@ -104,7 +105,7 @@ export function createAdapterServer(options = {}) {
     const response = {
       ...normalized,
       model: body.model || defaultModel,
-      usage: payload.usage || null,
+      usage: normalizeUsage(payload.usage),
     };
     rememberResponse(id, response);
     return sendJson(res, 200, response);
@@ -162,7 +163,7 @@ export function createAdapterServer(options = {}) {
           const data = line.slice(5).trim();
           if (!data || data === "[DONE]") continue;
           const parsed = JSON.parse(data);
-          if (parsed.usage) usage = parsed.usage;
+          if (parsed.usage) usage = normalizeUsage(parsed.usage);
           const choiceDelta = parsed.choices?.[0]?.delta || {};
           const delta = choiceDelta.content;
 

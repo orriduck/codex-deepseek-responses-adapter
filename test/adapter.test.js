@@ -4,6 +4,7 @@ import {
   deepseekRequestBody,
   messagesFromResponsesInput,
   normalizeDeepSeekMessage,
+  normalizeUsage,
   toolsFromResponsesTools,
 } from "../src/adapter.js";
 
@@ -97,4 +98,23 @@ test("normalizes DeepSeek tool calls into Responses output items", () => {
   assert.equal(normalized.output[0].type, "function_call");
   assert.equal(normalized.output[0].call_id, "call_abc");
   assert.equal(normalized.output[0].name, "shell");
+});
+
+test("normalizes DeepSeek usage into Responses usage shape", () => {
+  assert.deepEqual(
+    normalizeUsage({
+      prompt_tokens: 11,
+      completion_tokens: 7,
+      total_tokens: 18,
+      prompt_tokens_details: { cached_tokens: 3 },
+      completion_tokens_details: { reasoning_tokens: 2 },
+    }),
+    {
+      input_tokens: 11,
+      input_tokens_details: { cached_tokens: 3 },
+      output_tokens: 7,
+      output_tokens_details: { reasoning_tokens: 2 },
+      total_tokens: 18,
+    },
+  );
 });

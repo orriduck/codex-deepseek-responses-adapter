@@ -227,3 +227,23 @@ export function normalizeDeepSeekMessage(message, responseId, now = Date.now()) 
     output,
   };
 }
+
+export function normalizeUsage(usage) {
+  if (!usage) return null;
+  const inputTokens = usage.input_tokens ?? usage.prompt_tokens ?? 0;
+  const outputTokens = usage.output_tokens ?? usage.completion_tokens ?? 0;
+  const totalTokens = usage.total_tokens ?? inputTokens + outputTokens;
+  const cachedTokens = usage.input_tokens_details?.cached_tokens ?? usage.prompt_tokens_details?.cached_tokens ?? 0;
+  const reasoningTokens = usage.output_tokens_details?.reasoning_tokens ?? usage.completion_tokens_details?.reasoning_tokens ?? 0;
+  return {
+    input_tokens: inputTokens,
+    input_tokens_details: {
+      cached_tokens: cachedTokens,
+    },
+    output_tokens: outputTokens,
+    output_tokens_details: {
+      reasoning_tokens: reasoningTokens,
+    },
+    total_tokens: totalTokens,
+  };
+}
