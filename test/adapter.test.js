@@ -66,6 +66,19 @@ test("builds DeepSeek request body with supported knobs only when provided", () 
   assert.equal(body.max_tokens, 12);
   assert.equal(body.top_p, 0.8);
   assert.equal(body.parallel_tool_calls, true);
+  assert.deepEqual(body.stream_options, { include_usage: true });
+});
+
+test("maps Responses json_object text format to chat response_format", () => {
+  const body = deepseekRequestBody(
+    {
+      input: "return json",
+      text: { format: { type: "json_object" } },
+    },
+    undefined,
+    false,
+  );
+  assert.deepEqual(body.response_format, { type: "json_object" });
 });
 
 test("normalizes DeepSeek tool calls into Responses output items", () => {

@@ -144,6 +144,16 @@ export function deepseekRequestBody(body, responseStore, stream) {
   if (body.max_output_tokens !== undefined) requestBody.max_tokens = body.max_output_tokens;
   if (body.parallel_tool_calls !== undefined) requestBody.parallel_tool_calls = body.parallel_tool_calls;
   if (body.stop !== undefined) requestBody.stop = body.stop;
+  if (stream) requestBody.stream_options = { include_usage: true };
+  const textFormat = body.text?.format;
+  if (textFormat?.type === "json_object") {
+    requestBody.response_format = { type: "json_object" };
+  } else if (textFormat?.type === "json_schema") {
+    requestBody.response_format = {
+      type: "json_schema",
+      json_schema: textFormat.schema ? { name: textFormat.name || "response", schema: textFormat.schema } : textFormat.json_schema,
+    };
+  }
   return requestBody;
 }
 

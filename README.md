@@ -7,6 +7,7 @@ Codex currently requires `wire_api = "responses"` for custom providers. DeepSeek
 ## What Works
 
 - `POST /responses` and `POST /v1/responses`
+- `GET /responses/:id`, `DELETE /responses/:id`, and `POST /responses/:id/cancel`
 - streaming Server-Sent Events
 - non-streaming `stream: false`
 - text input and output
@@ -14,6 +15,7 @@ Codex currently requires `wire_api = "responses"` for custom providers. DeepSeek
 - tool call streaming back to Codex
 - `function_call_output` continuation via `previous_response_id`
 - multiple sequential tool calls
+- basic `text.format` to `response_format` mapping for JSON responses
 - `GET /models`, `GET /v1/models`, and `GET /health`
 
 ## Known Limits

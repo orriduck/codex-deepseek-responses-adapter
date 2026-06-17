@@ -62,7 +62,18 @@ export function createAdapterServer(options = {}) {
   const responseStore = new Map();
 
   function rememberResponse(id, output) {
-    responseStore.set(id, { output });
+    const value = Array.isArray(output)
+      ? {
+          id,
+          object: "response",
+          created_at: Math.floor(Date.now() / 1000),
+          status: "completed",
+          model: defaultModel,
+          output,
+          usage: null,
+        }
+      : output;
+    responseStore.set(id, value);
     while (responseStore.size > maxStoredResponses) {
       const oldestKey = responseStore.keys().next().value;
       responseStore.delete(oldestKey);
@@ -90,12 +101,13 @@ export function createAdapterServer(options = {}) {
     const payload = await upstream.json();
     const id = responseId();
     const normalized = normalizeDeepSeekMessage(payload.choices?.[0]?.message || {}, id);
-    rememberResponse(id, normalized.output);
-    return sendJson(res, 200, {
+    const response = {
       ...normalized,
       model: body.model || defaultModel,
       usage: payload.usage || null,
-    });
+    };
+    rememberResponse(id, response);
+    return sendJson(res, 200, response);
   }
 
   async function handleStreamingResponse(body, auth, res) {
@@ -114,6 +126,7 @@ export function createAdapterServer(options = {}) {
     let textOutputIndex = null;
     let nextOutputIndex = 0;
     const completedOutput = [];
+    let usage = null;
 
     res.writeHead(200, {
       "content-type": "text/event-stream",
@@ -149,6 +162,7 @@ export function createAdapterServer(options = {}) {
           const data = line.slice(5).trim();
           if (!data || data === "[DONE]") continue;
           const parsed = JSON.parse(data);
+          if (parsed.usage) usage = parsed.usage;
           const choiceDelta = parsed.choices?.[0]?.delta || {};
           const delta = choiceDelta.content;
 
@@ -285,19 +299,17 @@ export function createAdapterServer(options = {}) {
       });
     }
 
-    rememberResponse(id, completedOutput);
-    sse(res, "response.completed", {
-      type: "response.completed",
-      response: {
-        id,
-        object: "response",
-        created_at: createdAt,
-        status: "completed",
-        model: body.model || defaultModel,
-        output: completedOutput,
-        usage: null,
-      },
-    });
+    const completedResponse = {
+      id,
+      object: "response",
+      created_at: createdAt,
+      status: "completed",
+      model: body.model || defaultModel,
+      output: completedOutput,
+      usage,
+    };
+    rememberResponse(id, completedResponse);
+    sse(res, "response.completed", { type: "response.completed", response: completedResponse });
     res.end("data: [DONE]\n\n");
   }
 
@@ -328,6 +340,23 @@ export function createAdapterServer(options = {}) {
       }
       if (req.method === "POST" && (url.pathname === "/responses" || url.pathname === "/v1/responses")) {
         return await handleResponses(req, res);
+      }
+      const responseMatch = url.pathname.match(/^\/(?:v1\/)?responses\/([^/]+)$/);
+      if (responseMatch && req.method === "GET") {
+        const stored = responseStore.get(responseMatch[1]);
+        return stored ? sendJson(res, 200, stored) : sendJson(res, 404, { error: { message: "Response not found" } });
+      }
+      if (responseMatch && req.method === "DELETE") {
+        const deleted = responseStore.delete(responseMatch[1]);
+        return sendJson(res, deleted ? 200 : 404, deleted ? { id: responseMatch[1], deleted: true } : { error: { message: "Response not found" } });
+      }
+      const cancelMatch = url.pathname.match(/^\/(?:v1\/)?responses\/([^/]+)\/cancel$/);
+      if (cancelMatch && req.method === "POST") {
+        const stored = responseStore.get(cancelMatch[1]);
+        if (!stored) return sendJson(res, 404, { error: { message: "Response not found" } });
+        const canceled = { ...stored, status: "cancelled" };
+        responseStore.set(cancelMatch[1], canceled);
+        return sendJson(res, 200, canceled);
       }
       return sendJson(res, 404, { error: { message: "Not found" } });
     } catch (error) {
