@@ -25,7 +25,7 @@ Codex currently requires `wire_api = "responses"` for custom providers. DeepSeek
 ## Install
 
 ```bash
-git clone https://github.com/ruyyi0323/codex-deepseek-responses-adapter.git
+git clone https://github.com/orriduck/codex-deepseek-responses-adapter.git
 cd codex-deepseek-responses-adapter
 npm test
 npm start
