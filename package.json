@@ -1,0 +1,25 @@
+{
+  "name": "codex-deepseek-responses-adapter",
+  "version": "0.1.0",
+  "description": "Local Responses API adapter for using DeepSeek Chat Completions with Codex.",
+  "type": "module",
+  "bin": {
+    "codex-deepseek-responses-adapter": "./bin/codex-deepseek-responses-adapter.mjs"
+  },
+  "scripts": {
+    "start": "node ./bin/codex-deepseek-responses-adapter.mjs",
+    "test": "node --test",
+    "check": "node --check ./bin/codex-deepseek-responses-adapter.mjs && node --check ./src/adapter.js && node --check ./src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "deepseek",
+    "responses-api",
+    "adapter",
+    "proxy"
+  ]
+}

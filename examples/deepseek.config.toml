@@ -1,0 +1,10 @@
+model = "deepseek-v4-pro"
+model_provider = "deepseek"
+model_reasoning_effort = "high"
+
+[model_providers.deepseek]
+name = "DeepSeek via local Responses adapter"
+base_url = "http://127.0.0.1:48765"
+wire_api = "responses"
+env_key = "DEEPSEEK_API_KEY"
+env_key_instructions = "Set DEEPSEEK_API_KEY before starting Codex with --profile deepseek."
